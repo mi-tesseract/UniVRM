@@ -68,17 +68,24 @@ namespace VRM
             private Vector3 m_localDir;
             private Vector3 m_prevTail;
 
-            public VRMSpringBoneLogic(Transform center, Transform transform, Vector3 localChildPosition)
+            public VRMSpringBoneLogic(Transform center, Transform transform, Vector3 localChildPosition, Vector3 scale)
             {
                 m_transform = transform;
                 var worldChildPosition = m_transform.TransformPoint(localChildPosition);
+                var scaledLocalChildPosition =
+                        new Vector3(
+                            localChildPosition.x * scale.x,
+                            localChildPosition.y * scale.y,
+                            localChildPosition.z * scale.z
+                        )
+                    ;
                 m_currentTail = center != null
                         ? center.InverseTransformPoint(worldChildPosition)
                         : worldChildPosition;
                 m_prevTail = m_currentTail;
                 LocalRotation = transform.localRotation;
                 m_boneAxis = localChildPosition.normalized;
-                m_length = localChildPosition.magnitude;
+                m_length = scaledLocalChildPosition.magnitude;
             }
 
             public Vector3 Tail => m_transform.localToWorldMatrix.MultiplyPoint(m_boneAxis * m_length);
@@ -221,21 +228,15 @@ namespace VRM
             {
                 var delta = parent.position - parent.parent.position;
                 var childPosition = parent.position + delta.normalized * 0.07f;
-                m_verlet.Add(new VRMSpringBoneLogic(center, parent,
-                    parent.worldToLocalMatrix.MultiplyPoint(childPosition)));
+                var scale = parent.lossyScale;
+                m_verlet.Add(new VRMSpringBoneLogic(center, parent, childPosition, scale));
             }
             else
             {
                 var firstChild = GetChildren(parent).First();
                 var localPosition = firstChild.localPosition;
                 var scale = firstChild.lossyScale;
-                m_verlet.Add(new VRMSpringBoneLogic(center, parent,
-                        new Vector3(
-                            localPosition.x * scale.x,
-                            localPosition.y * scale.y,
-                            localPosition.z * scale.z
-                        )))
-                    ;
+                m_verlet.Add(new VRMSpringBoneLogic(center, parent, localPosition, scale));
             }
 
             foreach (Transform child in parent) SetupRecursive(center, child);
